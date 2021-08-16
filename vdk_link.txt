@@ -1,0 +1,9 @@
+https://lastminuteengineers.com/sim800l-gsm-module-arduino-tutorial/
+https://lastminuteengineers.com/sim800l-gsm-module-arduino-tutorial/
+https://www.elecrow.com/wiki/index.php?title=SIM808_GPRS/GSM%2BGPS_Shield_v1.1
+https://stackoverflow.com/questions/33345651/atcommand-atcops-gives-undefined-return
+https://www.robotshop.com/media/files/pdf/sim808-gps-module-datasheet.pdf
+https://m2msupport.net/m2msupport/atcops-plmn-selection/
+https://www.youtube.com/watch?v=9UEcT5GxdBk
+https://arduino.stackexchange.com/questions/29990/sim800-gsm-module-returns-0-on-atcops
+https://forum.arduino.cc/t/i2c-communication-between-nodemcu-and-arduino-uno/534715/10
