@@ -1,0 +1,35 @@
+
+tối 20/08
+
+- Review code : statewifi hợp lý, sửa một số tên hàm hợp lý,
+thêm giao diện, thêm đèn, sắp xếp hàm theo dàn ý
+- Lên dàn ý
+- Phân chia nhiệm vụ báo cáo
+- Refine code
+----------------
+
+log: 
+
+- Mô tả sơ lược hệ thống (kết nối, I2C, UART, logic chung)
+> Tiến
+
+- Cảm biến và ngắt cảm biến 
+> Thịnh
+
+- kết nối wifi, báo cáo vị trí thời gian thực qua wifi
+> Hùng
+
+- định vị GPS, gửi nhận tin nhắn, cuộc gọi
+> 2 người trình bày 
+> Lâm > GPS
+> Tiến > gửi nhận tin nhắn, cuộc gọi
+
+- demo/showvideo và kết luận
+> Tiến 
+
+--------------------
+
+Ngày 24/04: quay video demo + hoàn thiện slide
+
+ 
+

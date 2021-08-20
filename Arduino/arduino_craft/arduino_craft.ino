@@ -66,29 +66,32 @@ void setup() {
 
 void loop() {
   if (mode) {
-  // Runner là phần kiểm tra tiếp
-  Runner();
+    Runner();
   }
 }
 
 void Runner() {
 
   if (isWifiConnected()) {
+    tryingGPS();
     SendWarningMessage(SDT);
     delay(2000);
     if (waitForSignal(500000)) {
       isOnGuarded = false;
     }
     else {
-
+      
+      // bat canh bao
+      
+      tryingGPS();
+      sendSMS(SDT, createSMScontainLocation());
       while (true) {
         tryingGPS();
-        sendSMS(SDT, createSMScontainLocation());
-        RecieveMessage();
+        if (RecieveMessage()){
+          sendSMS(SDT, createSMScontainLocation());
+        }
       }
-
     }
-
   }
   else {
     mode == false;
@@ -128,6 +131,9 @@ String send2Sim808 (String command , const unsigned long timeout , boolean debug
 }
 
 boolean isWifiConnected() {
+
+  // todo: return true false hop ly#
+  
   if (stateWifi == "0") return false;
   else return true;
 }
@@ -177,7 +183,6 @@ void eventSensor() {
 }
 
 void SendWarningMessage(String sdt) {
-
   String message = "xe co the da bi mat trom, goi 0967237101 de bat canh bao.\n Vi tri xe la "+createSMScontainLocation();
   sendSMS(sdt, message);
 }
@@ -200,9 +205,8 @@ void sendSMS(String sdt, String message) {
 }
 
 
-
 boolean waitForSignal(unsigned long waitTime) {
-  sim808.println("AT");
+//  sim808.println("AT");
   delay(200);
   String response = "";
   unsigned long times = millis();

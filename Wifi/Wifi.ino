@@ -10,6 +10,7 @@ String latitude,longtitude;
 #define WIFI_SSID "The Ancient Wifi"   //Thay wifi và mật khẩu
 #define WIFI_PASSWORD "0967237101"
 FirebaseData f;
+
 void setup() {
   Serial.begin(9600);
   Wire.begin(D1, D2);
@@ -24,18 +25,21 @@ void setup() {
   Serial.println(WiFi.localIP());
   Firebase.begin(FIREBASE_HOST, FIREBASE_AUTH);
 }
+
 void loop() {
-//WiFi.status() != WL_CONNECTED
+
   if (WiFi.status() != WL_CONNECTED){
     Wire.beginTransmission(8);//0x08 = 8;
     Wire.write("0");
     Wire.endTransmission();
+    continue;
   } 
   else {
     Wire.beginTransmission(8);//0x08 = 8;
     Wire.write("connected \n");
     Wire.endTransmission();
   }
+  
   Wire.requestFrom(8,30); /* request & read data of size 13 from slave */
   while (Wire.available()) {
     char c = Wire.read();
