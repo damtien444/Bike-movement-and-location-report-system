@@ -32,7 +32,7 @@ void loop() {
     Wire.beginTransmission(8);//0x08 = 8;
     Wire.write("0");
     Wire.endTransmission();
-    continue;
+    
   } 
   else {
     Wire.beginTransmission(8);//0x08 = 8;

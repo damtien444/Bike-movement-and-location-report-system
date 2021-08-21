@@ -6,14 +6,15 @@
 const int LED = 13;
 const unsigned long waitTimeout = 60000;
 
-const String SDT = "84396119521";
+// const String SDT = "84396119521";
+const String SDT =    "84967237101";
 
 SoftwareSerial sim808(11, 10);
 String stateWifi = "0"; // not_connect
 
 // Debounce tránh kích hoạt ngắt quá nhiều
 unsigned long lastSwitchDetectedMIllis = 0;
-unsigned long debounceInterval = 60000;
+unsigned long debounceInterval = 10000;
 unsigned long interval;
 boolean mode = false;
 //boolean isStolen = false;
@@ -35,32 +36,30 @@ void setup() {
   Serial.begin(9600);
 
   // Bắt đầu các ngắt sự kiện i2c
-  Wire.onReceive(receiveEvent);
-  Wire.onRequest(requestEvent);
+  Wire.onReceive(recieveEventfromWifi);
+  Wire.onRequest(requestEventfromWifi);
 
   // Cài đặt mode cho pin của cảm biến là pullup
   pinMode(2, INPUT_PULLUP);
-  attachInterrupt(0, eventSensor,  RISING);
+  attachInterrupt(0, eventPIRsensor,  RISING);
   pinMode(LED, OUTPUT);
 
   // Bật GPS trên sim808
-  send2Sim808("AT+CGNSPWR=1", 2000, DEBUG);
+  command2sim808("AT+CGNSPWR=1", 2000, DEBUG);
   delay(200);
 
   // Đổi mode text NMEA sang RMC
-  send2Sim808("AT+CGNSSEQ=RMC", 2000, DEBUG);
+  command2sim808("AT+CGNSSEQ=RMC", 2000, DEBUG);
   delay(200);
 
   // Đổi chế độ text cho chức năng nhắn tin
-  send2Sim808("AT+CMGF=1", 2000, DEBUG);
+  command2sim808("AT+CMGF=1", 2000, DEBUG);
   delay(200);
 
-  Serial.println("innit gps");
-  while (!getGPSinfo()) {
-    delay(200);
-    Serial.println("...");
-  }
-  Serial.println("innit gps successfully");
+  tryingGPS();
+
+  Serial.print("Is wifi connected to trusted: ");
+  Serial.println(isWifiConnected() ? "true" : "false");
 
 }
 
@@ -72,23 +71,33 @@ void loop() {
 
 void Runner() {
 
-  if (isWifiConnected()) {
+  // dieu kien dung == false, dang set dieu kien gia test he thong
+  if (isWifiConnected() == true && isOnGuarded == true) {
+
+    // First Alert!
     tryingGPS();
     SendWarningMessage(SDT);
     delay(2000);
-    if (waitForSignal(500000)) {
+
+    // read all return
+    readAllResponse(1000);
+    delay(50);
+
+    // Wait for cancel signal!
+    if (waitForCancelCallSignal(50000)) {
       isOnGuarded = false;
+      Serial.println("Sequence cancel!");
     }
-    else {
-      
+
+    else {     
       // bat canh bao
       
-      tryingGPS();
-      sendSMS(SDT, createSMScontainLocation());
+      // wait for relocate command
       while (true) {
-        tryingGPS();
-        if (RecieveMessage()){
-          sendSMS(SDT, createSMScontainLocation());
+        
+        if (ListenToRELOmessage()){
+          tryingGPS();
+          SendLocationReport(SDT);
         }
       }
     }
@@ -98,73 +107,9 @@ void Runner() {
   }
 }
 
-void tryingGPS() {
-  Serial.println("get gps");
-  while (!getGPSinfo()) {
-    Serial.println("...");
-  }
-  Serial.println("get gps successfully");
-}
+// SENSOR SECTION: THINH
 
-String createSMScontainLocation() {
-  String link = "http://maps.google.com/maps?q=";
-  link += latitude;
-  link += ",";
-  link += longitude;
-  return link;
-}
-
-String send2Sim808 (String command , const unsigned long timeout , boolean debug) {
-  String response = "";
-  sim808.println(command);
-  unsigned long time = millis();
-  while ((time + timeout) > millis()) {
-    while (sim808.available()) {
-      char c = sim808.read();
-      response += c;
-    }
-  }
-  if (debug) {
-    Serial.print(response);
-  }
-  return response;
-}
-
-boolean isWifiConnected() {
-
-  // todo: return true false hop ly#
-  
-  if (stateWifi == "0") return false;
-  else return true;
-}
-
-void receiveEvent(int howMany) {
-
-  // Hàm được gọi tương tự khi gọi ngắt mà nhận được sự kiện từ esp
-
-  stateWifi = "";
-  while (0 < Wire.available()) {
-    char c = Wire.read();
-    stateWifi += c;
-  }
-    Serial.print(stateWifi);
-}
-
-void requestEvent() {
-  x += latitude;
-  x += "-";
-  x += longitude;
-  x += ",";
-  int str_len = x.length() + 1;
-  char location[str_len];
-  x.toCharArray(location, str_len);
-  Serial.println(x);
-  Wire.write(location);
-  /*send string on request */
-  x = "";
-}
-
-void eventSensor() {
+void eventPIRsensor() {
 
   if (isOnGuarded && mode == false) {
 
@@ -182,8 +127,128 @@ void eventSensor() {
   }
 }
 
+// WIFI SECTION: HUNG
+
+boolean isWifiConnected() {
+
+  // todo: return true false hop ly > DONE
+  
+  if (stateWifi == "0") return false;
+  else return true;
+}
+
+void recieveEventfromWifi(int howMany) {
+
+  // Hàm được gọi tương tự khi gọi ngắt mà nhận được sự kiện từ esp
+
+  stateWifi = "";
+  while (0 < Wire.available()) {
+    char c = Wire.read();
+    stateWifi += c;
+  }
+
+}
+
+void requestEventfromWifi() {
+  x += latitude;
+  x += "-";
+  x += longitude;
+  x += ",";
+  int str_len = x.length() + 1;
+  char location[str_len];
+  x.toCharArray(location, str_len);
+  Wire.write(location);
+  x = "";
+}
+
+// GPS SECTION: LAM
+
+void tryingGPS() {
+  Serial.println("Trying to get gps...");
+  while (!getGPSinfo(true)) {
+    Serial.println("...");
+  }
+  Serial.println("Get gps successfully!");
+}
+
+boolean getGPSinfo(boolean debug) {
+  String data[5];
+  sim808.println("AT+CGNSINF");
+  delay(150);
+  unsigned long time = millis();
+  int i = 0;
+  while ((time + 2000) > millis()) {
+    while (sim808.available()) {
+      char c = (char)sim808.read();
+      if (c != ',') {
+        data[i] += c;
+        delay(100);
+      }
+      else {
+        i++;
+      }
+      if (i == 5) {
+        delay(100);
+        break;
+      }
+    }
+  }
+  //  Serial.println(debug);
+  if (debug) {
+    state = data[1];
+    timegps = data[2];
+    latitude = data[3];
+    longitude = data[4];
+    //    Wire.onRequest(requestEventfromWifi);
+  }
+  if (state != 0) {
+    Serial.println("State: " + state);
+    Serial.println("Time: " + timegps);
+    Serial.println("Latitude: " + latitude);
+    Serial.println("Longitude: " + longitude);
+    return true;
+  } else {
+    Serial.println("GPS Initializing…");
+    return false;
+  }
+  Serial.println("------------------------------------------------");
+}
+
+String createMapsLinkWithLocation() {
+  String link = "http://maps.google.com/maps?q=";
+  link += latitude;
+  link += ",";
+  link += longitude;
+  return link;
+}
+
+// SMS send, receive and CALL SECTION: TIEN
+
+String command2sim808 (String command , const unsigned long timeout , boolean debug) {
+  String response = "";
+  sim808.println(command);
+  unsigned long time = millis();
+  while ((time + timeout) > millis()) {
+    while (sim808.available()) {
+      char c = sim808.read();
+      response += c;
+    }
+  }
+  if (debug) {
+    Serial.print(response);
+  }
+  return response;
+}
+
+
+
 void SendWarningMessage(String sdt) {
-  String message = "xe co the da bi mat trom, goi 0967237101 de bat canh bao.\n Vi tri xe la "+createSMScontainLocation();
+  String message = "Xe co the da bi mat trom, goi 84396119521 de huy canh bao! Vi tri xe la "+createMapsLinkWithLocation();
+  sendSMS(sdt, message);
+}
+
+void SendLocationReport(String sdt) {
+  String message = "Vi tri hien tai cua xe la: "+createMapsLinkWithLocation();
   sendSMS(sdt, message);
 }
 
@@ -196,7 +261,7 @@ void sendSMS(String sdt, String message) {
   sim808.println("AT+CMGF=1");
   delay(200);
   sim808.println(command1);
-  delay(5000);
+  delay(1000);
   sim808.println(message);
   delay(1000);
   sim808.println((char)26);
@@ -204,10 +269,19 @@ void sendSMS(String sdt, String message) {
   Serial.println("SMS sent successfully.");
 }
 
+void readAllResponse(unsigned long waitTime){
+  String response = "";
+  unsigned long times = millis();
+  while ((times + waitTime) > millis()) {
+    while (sim808.available()) {
+      char c = (char)sim808.read();
+      Serial.println(c);
+      response += c;
+    }
+  }
+}
 
-boolean waitForSignal(unsigned long waitTime) {
-//  sim808.println("AT");
-  delay(200);
+boolean waitForCancelCallSignal(unsigned long waitTime) {
   String response = "";
   unsigned long times = millis();
   while ((times + waitTime) > millis()) {
@@ -231,69 +305,19 @@ boolean waitForSignal(unsigned long waitTime) {
   return false;
 }
 
-boolean getGPSinfo() {
-  String data[5];
-  sim808.println("AT+CGNSINF");
-  delay(150);
-  unsigned long time = millis();
-  int i = 0;
-  while ((time + 2000) > millis()) {
-    while (sim808.available()) {
-      char c = (char)sim808.read();
-      if (c != ',') {
-        data[i] += c;
-        delay(100);
-      }
-      else {
-        i++;
-      }
-      if (i == 5) {
-        delay(100);
-        break;
-      }
-    }
-  }
-  //  Serial.println(debug);
-  if (true) {
-    state = data[1];
-    timegps = data[2];
-    latitude = data[3];
-    longitude = data[4];
-    //    Wire.onRequest(requestEvent);
-  }
-  if (state != 0) {
-    Serial.println("State: " + state);
-    Serial.println("Time: " + timegps);
-    Serial.println("Latitude: " + latitude);
-    Serial.println("Longitude: " + longitude);
-    return true;
-  } else {
-    Serial.println("GPS Initializing…");
-    return false;
-  }
-  Serial.println("------------------------------------------------");
-}
 
-boolean RecieveMessage() {
-
-  //  sim808.println("AT+CNMI=2,2");
-  // AT Command to recieve a live SMS
-  send2Sim808("AT+CNMI=2,2,0,0,0", 2000, DEBUG);
-
+boolean ListenToRELOmessage() {
+  command2sim808("AT+CNMI=2,2,0,0,0", 2000, true);
   delay(1000);
-  Serial.println("run");
-  if (readMessages()) return true;
+  Serial.println("Listening to RELO sequence!");
+  if (readRELO()) return true;
   else return false;
-  delay(1000);
-
 }
 
-boolean readMessages() {
-  unsigned long times = millis();
+boolean readRELO() {
   String response = "";
   Serial.println("waiting");
   while (true) {
-    //    Serial.println(".");
     while (sim808.available()) {
       char c = (char) sim808.read();
       if (c != 'R' && c != 'E' && c != 'L' && c != 'O') {
@@ -303,12 +327,11 @@ boolean readMessages() {
       response += c;
     }
     if (response == "RELO") {
-      Serial.println("Confirmed, stop waiting.");
+      Serial.println("RELOCATE Confirmed, stop waiting.");
       break;
     }
   }
   if (response == "RELO") {
-    Serial.println("Call Confirmed.");
     return true;
   }
   return false;

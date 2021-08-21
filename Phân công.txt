@@ -1,8 +1,13 @@
 
 tối 20/08
 
-- Review code : statewifi hợp lý, sửa một số tên hàm hợp lý,
-thêm giao diện, thêm đèn, sắp xếp hàm theo dàn ý
+- Review code : 
+> statewifi hợp lý, => done
+> sửa một số tên hàm hợp lý, => done
+> thêm giao diện Serial, => done
+> thêm đèn, 
+> sắp xếp hàm theo dàn ý => done
+
 - Lên dàn ý
 - Phân chia nhiệm vụ báo cáo
 - Refine code

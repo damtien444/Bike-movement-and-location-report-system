@@ -32,7 +32,7 @@ void setup() {
 
   Serial.println("READ sms");
 //  delay(10000);
-  RecieveMessage();
+  Serial.println(RecieveMessage());
 }
 
 void loop()
@@ -97,6 +97,22 @@ void sendSMS(String sdt, String message) {
 //  }
 //  return response;
 //}
+
+String send2Sim808 (String command , const unsigned long timeout , boolean debug) {
+  String response = "";
+  sim808.println(command);
+  unsigned long time = millis();
+  while ((time + timeout) > millis()) {
+    while (sim808.available()) {
+      char c = sim808.read();
+      response += c;
+    }
+  }
+  if (debug) {
+    Serial.print(response);
+  }
+  return response;
+}
 
 //boolean waitForSignal(){
 //  sim808.println("AT");
@@ -170,37 +186,42 @@ boolean getGPSinfo() {
   Serial.println("------------------------------------------------");
 }
 
-void RecieveMessage() {
+boolean RecieveMessage() {
 
-//  sim808.println("AT+CNMI=2,2");
+  //  sim808.println("AT+CNMI=2,2");
   // AT Command to recieve a live SMS
-  sendData("AT+CNMI=2,2,0,0,0", 2000, DEBUG);
-  
+  send2Sim808("AT+CNMI=2,2,0,0,0", 2000, DEBUG);
+
   delay(1000);
   Serial.println("run");
-  readMessages();
+  if (readMessages()) return true;
+  else return false;
   delay(1000);
 
 }
 
-void readMessages() {
-  long int times = millis();
-  tin_nhan="";
+boolean readMessages() {
+  unsigned long times = millis();
+  String response = "";
   Serial.println("waiting");
-  while ((times + 10000) > millis()) {
-    Serial.println(".");
+  while (true) {
+    //    Serial.println(".");
     while (sim808.available()) {
       char c = (char) sim808.read();
+      if (c != 'R' && c != 'E' && c != 'L' && c != 'O') {
+        break;
+      }
       Serial.println(c);
-//      if (c == '#') break;
-      tin_nhan += c;
+      response += c;
     }
-    if (tin_nhan.length() > 0) {
-      Serial.println(tin_nhan);
-      Serial.println(tin_nhan+" nhan duoc");
-      message = tin_nhan;
-      tin_nhan = "";
+    if (response == "RELO") {
+      Serial.println("Confirmed, stop waiting.");
+      break;
     }
   }
-
+  if (response == "RELO") {
+    Serial.println("RELOCATE Confirmed.");
+    return true;
+  }
+  return false;
 }
