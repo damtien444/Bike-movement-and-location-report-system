@@ -6,18 +6,19 @@
 const int LED = 13;
 const unsigned long waitTimeout = 60000;
 
-// const String SDT = "84396119521";
-const String SDT =    "84967237101";
+// const String masterPhoneNum = "84396119521";
+const String masterPhoneNum =    "84967237101";
+const String modulePhoneNum =    "84396119521";
 
 SoftwareSerial sim808(11, 10);
+
 String stateWifi = "0"; // not_connect
 
 // Debounce tránh kích hoạt ngắt quá nhiều
 unsigned long lastSwitchDetectedMIllis = 0;
 unsigned long debounceInterval = 10000;
 unsigned long interval;
-boolean mode = false;
-//boolean isStolen = false;
+boolean isSensorActive = false;
 
 String state, timegps, latitude, longitude, x;
 String message, tin_nhan;
@@ -64,19 +65,19 @@ void setup() {
 }
 
 void loop() {
-  if (mode) {
-    Runner();
-  }
+
+  Runner();
+
 }
 
 void Runner() {
 
-  // dieu kien dung == false, dang set dieu kien gia test he thong
-  if (isWifiConnected() == true && isOnGuarded == true) {
+  // dieu kien dung isWifiConnected() == false, dang set dieu kien gia test he thong
+  if (isSensorActive == true && isWifiConnected() == false && isOnGuarded == true) {
 
     // First Alert!
     tryingGPS();
-    SendWarningMessage(SDT);
+    SendWarningMessage(masterPhoneNum);
     delay(2000);
 
     // read all return
@@ -84,26 +85,24 @@ void Runner() {
     delay(50);
 
     // Wait for cancel signal!
-    if (waitForCancelCallSignal(50000)) {
+    if (waitForCancelCallSignal(waitTimeout)) {
       isOnGuarded = false;
       Serial.println("Sequence cancel!");
     }
-
     else {     
       // bat canh bao
       
       // wait for relocate command
       while (true) {
-        
         if (ListenToRELOmessage()){
           tryingGPS();
-          SendLocationReport(SDT);
+          SendLocationReport(masterPhoneNum);
         }
       }
     }
   }
   else {
-    mode == false;
+    isSensorActive == false;
   }
 }
 
@@ -111,19 +110,22 @@ void Runner() {
 
 void eventPIRsensor() {
 
-  if (isOnGuarded && mode == false) {
+  if (isOnGuarded == true && isSensorActive == false) {
 
     // Thêm hệ điều kiện để hoạt động chính xác hơn.
 
     interval = millis() - lastSwitchDetectedMIllis;
     if (interval > debounceInterval) {
       lastSwitchDetectedMIllis = millis();
-      mode = !mode;
+      isSensorActive = true;
       Serial.println("Ngat kich hoat.");
     }
     else {
-      Serial.println("Skip ngat.");
+      Serial.println("Skip ngat (time).");
     }
+  }
+  else {
+      Serial.println("Skip ngat (condition).");
   }
 }
 
@@ -242,19 +244,19 @@ String command2sim808 (String command , const unsigned long timeout , boolean de
 
 
 
-void SendWarningMessage(String sdt) {
-  String message = "Xe co the da bi mat trom, goi 84396119521 de huy canh bao! Vi tri xe la "+createMapsLinkWithLocation();
-  sendSMS(sdt, message);
+void SendWarningMessage(String masterPhoneNum) {
+  String message = "Xe co the da bi mat trom, goi " + modulePhoneNum + " de huy canh bao! Vi tri xe la " + createMapsLinkWithLocation();
+  sendSMS(masterPhoneNum, message);
 }
 
-void SendLocationReport(String sdt) {
+void SendLocationReport(String masterPhoneNum) {
   String message = "Vi tri hien tai cua xe la: "+createMapsLinkWithLocation();
-  sendSMS(sdt, message);
+  sendSMS(masterPhoneNum, message);
 }
 
-void sendSMS(String sdt, String message) {
+void sendSMS(String masterPhoneNum, String message) {
   String command1 = "AT+CMGS=\"";
-  command1 += sdt;
+  command1 += masterPhoneNum;
   command1 += "\"";
   sim808.println("at");
   delay(200);
