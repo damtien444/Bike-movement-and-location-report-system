@@ -196,14 +196,14 @@ boolean getGPSinfo(boolean debug) {
     }
   }
   //  Serial.println(debug);
-  if (debug) {
+  if (state != 0) {
     state = data[1];
     timegps = data[2];
     latitude = data[3];
     longitude = data[4];
     //    Wire.onRequest(requestEventfromWifi);
   }
-  if (state != 0) {
+  if (debug) {
     Serial.println("State: " + state);
     Serial.println("Time: " + timegps);
     Serial.println("Latitude: " + latitude);
@@ -232,7 +232,7 @@ String command2sim808 (String command , const unsigned long timeout , boolean de
   unsigned long time = millis();
   while ((time + timeout) > millis()) {
     while (sim808.available()) {
-      char c = sim808.read();
+      char c = (char) sim808.read();
       response += c;
     }
   }
@@ -276,7 +276,7 @@ void readAllResponse(unsigned long waitTime){
   unsigned long times = millis();
   while ((times + waitTime) > millis()) {
     while (sim808.available()) {
-      char c = (char)sim808.read();
+      char c = (char) sim808.read();
       Serial.println(c);
       response += c;
     }
